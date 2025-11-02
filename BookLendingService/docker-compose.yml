@@ -12,6 +12,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080;https://+:8081
-      - ConnectionStrings__DefaultConnection=Data Source=/app/data/books.db
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/books.db # intentionally kept separate from IIS route
     volumes:
       - ./BookLendingService/data:/app/data
