@@ -35,6 +35,8 @@
       "environmentVariables": {
         "ASPNETCORE_HTTPS_PORTS": "8081",
         "ASPNETCORE_HTTP_PORTS": "8080"
+        //application runs on"https:localhost:8081/swagger/index.html
+        //application runs on ttps://localhost:50750/swagger/index.html
       },
       "publishAllPorts": true,
       "useSSL": true

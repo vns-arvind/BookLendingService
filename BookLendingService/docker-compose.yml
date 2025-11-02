@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  booklending:
+    container_name: booklending
+    build:
+      context: .
+      dockerfile: BookLendingService/Dockerfile
+    ports:
+      - "8080:8080"   # HTTP
+      - "8081:8081"   # HTTPS
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080;https://+:8081
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/books.db
+    volumes:
+      - ./BookLendingService/data:/app/data
