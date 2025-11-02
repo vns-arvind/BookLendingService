@@ -1,10 +1,11 @@
 ﻿using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
+using Amazon.CDK.AWS.Ecr.Assets;
+using Amazon.CDK.AWS.ECR;
 using Amazon.CDK.AWS.ECS;
+using Amazon.CDK.AWS.ECS.Patterns;
 using Amazon.CDK.AWS.IAM;
-using System.Data;
-using System.Diagnostics.Contracts;
-using System.Diagnostics.Metrics;
+using Constructs;
 
 namespace BookLendingInfra
 {
@@ -13,65 +14,57 @@ namespace BookLendingInfra
         internal BookLendingInfraStack(Construct scope, string id, StackProps props = null)
             : base(scope, id, props)
         {
-            // ✅ 1. VPC (use default VPC for simplicity)
+            // Use default VPC
             var vpc = Vpc.FromLookup(this, "DefaultVPC", new VpcLookupOptions
             {
                 IsDefault = true
             });
 
-            // ✅ 2. ECS Cluster
+            // ECS Cluster
             var cluster = new Cluster(this, "BookLendingCluster", new ClusterProps
             {
                 Vpc = vpc,
                 ClusterName = "booklending-cluster"
             });
 
-            // ✅ 3. Task Execution Role
-            var taskExecutionRole = new Role(this, "TaskExecutionRole", new RoleProps
+            // ECR Repository
+            var repository = new Repository(this, "BookLendingRepo", new RepositoryProps
             {
-                AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com")
+                RepositoryName = "booklending",
+                RemovalPolicy = RemovalPolicy.DESTROY // Use RETAIN for production
             });
 
-            taskExecutionRole.AddManagedPolicy(
-                ManagedPolicy.FromAwsManagedPolicyName("service-role/AmazonECSTaskExecutionRolePolicy")
-            );
-
-            // ✅ 4. Task Definition
-            var taskDefinition = new FargateTaskDefinition(this, "BookLendingTask", new FargateTaskDefinitionProps
+            // Docker image build & push from local source
+            var imageAsset = new DockerImageAsset(this, "BookLendingImage", new DockerImageAssetProps
             {
-                Cpu = 256,
-                MemoryLimitMiB = 512,
-                ExecutionRole = taskExecutionRole
+                Directory = "../BookLending"
             });
 
-            // Replace this with your ECR image
-            var container = taskDefinition.AddContainer("BookLendingContainer", new ContainerDefinitionOptions
-            {
-                Image = ContainerImage.FromRegistry("123456789012.dkr.ecr.us-east-1.amazonaws.com/booklending:latest"),
-                Logging = LogDrivers.AwsLogs(new AwsLogDriverProps
-                {
-                    StreamPrefix = "booklending"
-                })
-            });
-
-            container.AddPortMappings(new PortMapping
-            {
-                ContainerPort = 80,
-                Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
-            });
-
-            // ✅ 5. ECS Service (Fargate)
-            new FargateService(this, "BookLendingService", new FargateServiceProps
+            // Fargate service with ALB
+            var service = new ApplicationLoadBalancedFargateService(this, "BookLendingService", new ApplicationLoadBalancedFargateServiceProps
             {
                 Cluster = cluster,
-                ServiceName = "booklending-service",
-                TaskDefinition = taskDefinition,
                 DesiredCount = 1,
-                AssignPublicIp = true,
-                VpcSubnets = new SubnetSelection
+                Cpu = 256,
+                MemoryLimitMiB = 512,
+                ListenerPort = 80,
+                PublicLoadBalancer = true,
+                TaskImageOptions = new ApplicationLoadBalancedTaskImageOptions
                 {
-                    SubnetType = SubnetType.PUBLIC
+                    Image = ContainerImage.FromDockerImageAsset(imageAsset),
+                    ContainerPort = 80,
+                    LogDriver = LogDrivers.AwsLogs(new AwsLogDriverProps
+                    {
+                        StreamPrefix = "booklending"
+                    })
                 }
+            });
+
+            // Optional: Auto-scaling
+            var scaling = service.Service.AutoScaleTaskCount(new Amazon.CDK.AWS.ApplicationAutoScaling.EnableScalingProps
+            {
+                MinCapacity = 1,
+                MaxCapacity = 3
             });
         }
     }
