@@ -2,6 +2,8 @@ using BookLending.Application.DTOs;
 using BookLending.Domain.Entities;
 using BookLending.Infrastructure.Repositories;
 using BookLending.Services;
+using BookLending.Validators;
+using FluentValidation;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -43,6 +45,79 @@ namespace BookLending.Tests.Services
         }
 
         [Fact]
+        public async Task AddBookAsync_Should_Invalidate_Cache()
+        {
+            // Arrange
+            var newBook = new CreateBookDto ( "Test Book", "Tester" );
+            _bookRepoMock.Setup(r => r.AddAsync(It.IsAny<Book>(), default))
+                         .Returns(Task.CompletedTask);
+            // Pre-populate cache
+            var cachedBooks = new List<BookDto>
+            {
+                new BookDto ( Guid.NewGuid(), "Cached Book", "Cached Author", true, DateTime.Now )
+            };
+            _memoryCache.Set("all_books", cachedBooks);
+            // Act
+            await _service.AddBookAsync(newBook, default);
+            // Assert
+            Assert.False(_memoryCache.TryGetValue("all_books", out _));
+        }
+
+        /*
+         * 
+         * There is no test for validation failure in AddBookAsync because the validation is typically handled globally
+         * to keep controllers & service clean.
+         * 
+         * Global validation can be handled through integration testing of the API endpoints or middleware.
+         * 
+         * Testing validor separately as below.
+         * 
+         */
+
+        [Fact]
+        public void Validator_Should_Fail_When_Title_Empty()
+        {
+            var validator = new CreateBookDtoValidator();
+            var dto = new CreateBookDto("", "");
+
+            var result = validator.Validate(dto);
+
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Errors, e => e.PropertyName == "Title");
+        }
+
+        [Fact]
+        public async Task GetAllBooksAsync_Should_Return_Books()
+        {
+            // Arrange
+            var books = new List<Book>
+            {
+                new Book { Id = _bookGuid, Title = "Book 1", Author = "Author 1" },
+                new Book { Id = Guid.NewGuid(), Title = "Book 2", Author = "Author 2" }
+            };
+            _bookRepoMock.Setup(r => r.GetAllAsync(default))
+                         .ReturnsAsync(books);
+            // Act
+            var result = await _service.GetAllBooksAsync(default);
+            // Assert
+            Assert.Equal(2, result.Count());
+            Assert.Contains(result, b => b.Title == "Book 1");
+            Assert.Contains(result, b => b.Title == "Book 2");
+        }
+
+        [Fact]
+        public async Task GetAllBooksAsync_Should_Return_Empty_List_When_No_Books()
+        {
+            // Arrange
+            _bookRepoMock.Setup(r => r.GetAllAsync(default))
+                         .ReturnsAsync(new List<Book>());
+            // Act
+            var result = await _service.GetAllBooksAsync(default);
+            // Assert
+            Assert.Empty(result);
+        }
+
+        [Fact]
         public async Task GetBooksAsync_Should_Return_Books_From_Cache_When_Available()
         {
             // Arrange
@@ -57,9 +132,9 @@ namespace BookLending.Tests.Services
             var result = await _service.GetAllBooksAsync(default);
 
             // Assert
-            Assert.Single(result);
-            Assert.Equal("Cached Book", result.First().Title);
             _bookRepoMock.Verify(r => r.GetAllAsync(default), Times.Never);
+            Assert.Single(result);
+            Assert.Equal("Cached Book", result.First().Title);            
         }
 
         [Fact]
@@ -78,9 +153,9 @@ namespace BookLending.Tests.Services
             var result = await _service.GetAllBooksAsync(default);
 
             // Assert
-            Assert.Single(result);
-            Assert.Equal("Repo Book", result.First().Title);
             _bookRepoMock.Verify(r => r.GetAllAsync(default), Times.Once);
+            Assert.Single(result);
+            Assert.Equal("Repo Book", result.First().Title);            
         }
 
         [Fact]
@@ -95,8 +170,9 @@ namespace BookLending.Tests.Services
             await _service.CheckoutAsync(_bookGuid, default);
 
             // Assert
-            Assert.False(book.IsAvailable);
+
             _bookRepoMock.Verify(r => r.UpdateAsync(book, default), Times.Once);
+            Assert.False(book.IsAvailable);
         }
 
         [Fact]
@@ -111,8 +187,8 @@ namespace BookLending.Tests.Services
             await _service.ReturnAsync(_bookGuid);
 
             // Assert
-            Assert.True(book.IsAvailable);
             _bookRepoMock.Verify(r => r.UpdateAsync(book, default), Times.Once);
+            Assert.True(book.IsAvailable);            
         }
 
         [Fact]

@@ -12,6 +12,7 @@ public class CreateBookDtoValidator : AbstractValidator<CreateBookDto>
             .MaximumLength(500).WithMessage("Title cannot exceed 500 characters.");
 
         RuleFor(x => x.Author)
+            .NotEmpty().WithMessage("Author is required.")
             .MaximumLength(200).WithMessage("Author name cannot exceed 200 characters.");
     }
 }

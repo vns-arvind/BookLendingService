@@ -1,77 +1,86 @@
 using BookLending.Application.Interfaces;
 using BookLending.Infrastructure.Data;
 using BookLending.Infrastructure.Repositories;
+using BookLending.Middleware;
 using BookLending.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using BookLending.Middleware;
 using Serilog;
 
-// Didn't consider Polly because there is no external HTTP calls in this service
-
-var builder = WebApplication.CreateBuilder(args);
-
+// --- Setup Serilog ---
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()                   // basic structured logging
-    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day) // optional
-    .Enrich.FromLogContext()             // adds request info (Path, etc.)
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .Enrich.FromLogContext()
     .MinimumLevel.Information()
     .CreateLogger();
 
+var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
-// Controllers + ProblemDetails
-builder.Services.AddControllers()    
+// --- Controllers + ProblemDetails ---
+builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
-        // Disable automatic 400 response — we'll handle manually in controller
-        options.SuppressModelStateInvalidFilter = true;
+        // Let ASP.NET Core automatically return ValidationProblemDetails
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "One or more validation errors occurred.",
+                Detail = "See the errors property for details."
+            };
+            return new BadRequestObjectResult(problemDetails);
+        };
     });
 
-// Swagger
+// --- Swagger ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 
-// DbContext
+// --- DbContext ---
 builder.Services.AddDbContext<BookContext>(opts =>
     opts.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=books.db"));
 
-// DI
+// --- Dependency Injection ---
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<IBookService, BookService>();
 
-// FluentValidation
-builder.Services.AddFluentValidationAutoValidation(); // Enables automatic validation if wanted
+// --- FluentValidation ---
+builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<BookLending.Validators.CreateBookDtoValidator>();
 
-// Health checks
+// --- Health Checks ---
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
-// Exception handler (ProblemDetails)
-builder.Services.AddProblemDetails(); // .NET 8+ built-in extension
+// --- ProblemDetails Middleware (.NET 8) ---
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-// Database init
+// --- Database Init ---
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<BookContext>();
     ctx.Database.EnsureCreated();
 }
 
-// Middlewares
+// --- Middlewares ---
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(); // Log requests
+app.UseExceptionHandler();       // Use built-in ProblemDetails for unhandled exceptions
+app.UseMiddleware<ExceptionHandlingMiddleware>(); // (Optional) keep if you have domain-specific exceptions
 
-app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseRouting();
 app.MapControllers();
 app.MapHealthChecks("/health");

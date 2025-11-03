@@ -1,5 +1,4 @@
-﻿using BookLending.Application.Interfaces;
-using BookLending.Domain.Entities;
+﻿using BookLending.Domain.Entities;
 using BookLending.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
