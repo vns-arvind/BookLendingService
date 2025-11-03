@@ -1,12 +1,18 @@
-# 📚 Book Lending Service API
+# Book Lending API
 
 A professional-grade **.NET 8 Web API** implementing a clean
 architecture, SOLID principles, and production-ready patterns for a
 fictional book lending service.
 
+-----------------------------------------------------------------------
+
+# AWS Deployment
+
+![alt text](image.png)
+
 ------------------------------------------------------------------------
 
-## 🚀 Features
+## Features
 
 -   Add, view, check out, and return books.
 -   Layered architecture: **Controller → Service → Repository →
@@ -22,7 +28,7 @@ fictional book lending service.
 
 ------------------------------------------------------------------------
 
-## 🧩 Architecture Overview
+## Architecture Overview
 
     Controller → Service → Repository → DbContext
 
@@ -37,19 +43,19 @@ fictional book lending service.
 
 ------------------------------------------------------------------------
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
-### 🧱 Prerequisites
+### Prerequisites
 
 -   .NET 8 SDK
 -   Docker (optional, for containerization)
 -   SQLite or in-memory database (default)
 
-### 🧩 Run Locally
+### Run Locally
 
 ``` bash
-git clone <repo-url>
-cd BookLending.Api
+git clone https://github.com/vns-arvind/BookLendingService.git
+cd BookLending
 dotnet restore
 dotnet run
 ```
@@ -58,7 +64,7 @@ Visit: <http://localhost:5000/swagger>
 
 ------------------------------------------------------------------------
 
-## 🧠 Design Principles
+## Design Principles
 
   Principle             Implementation
   --------------------- -----------------------------------------------------
@@ -68,11 +74,11 @@ Visit: <http://localhost:5000/swagger>
   **Resilience**        Exception middleware, retry patterns (Polly-ready)
   **Reliability**       Health checks, structured logging
   **Observability**     Serilog + health probes
-  **Testability**       Unit tests, integration tests, mock repositories
+  **Testability**       Unit tests, mock repositories
 
 ------------------------------------------------------------------------
 
-## 🧩 API Endpoints
+## API Endpoints
 
   Method   Endpoint                     Description
   -------- ---------------------------- -------------------------
@@ -83,55 +89,62 @@ Visit: <http://localhost:5000/swagger>
 
 ------------------------------------------------------------------------
 
-## 🐳 Docker Setup
+## Option 1 : Docker Setup
 
 ### Build Image
 
 ``` bash
-docker build -t booklending-api .
+docker build -t booklending:latest .
 ```
 
 ### Run Container
 
 ``` bash
-docker run -d -p 5000:80 booklending-api
+docker run -d -p 8080:80 --name booklending booklending:latest
+```
+### Now your browser
+
+``` bash
+http://localhost:8080/swagger
 ```
 
+## Option 2 : Run with Docker Compose
+
+### If you’re using Visual Studio, it may generate a Docker Compose setup for you (docker-compose.yml or .dcproj). Run everything via:
+
+``` bash
+docker compose up --build
+```
 ------------------------------------------------------------------------
 
-## ☁️ AWS Deployment (Optional)
+## AWS Deployment (Optional)
 
 ### Using ECS (Fargate)
 
--   Define infrastructure using **IaC (CloudFormation/Terraform)**.
+-   Define infrastructure using **AWS CDK (C#)**.
 -   Configure environment variables for DB and connection strings.
--   Push Docker image to **Amazon ECR**.
+-   CDK Push Docker image to **Amazon ECR**.
 -   Deploy ECS Service with Load Balancer + Auto Scaling.
-
-### Using Lambda + API Gateway
-
--   Use **AWS Lambda Web API template** or **Serverless Framework**.
--   Deploy via GitHub Actions or AWS CLI.
 
 ------------------------------------------------------------------------
 
-## 🧰 Development Practices
+## Development Practices
 
 -   **TDD-friendly:** Independent testable components.
 -   **Custom Middleware:** Handles global exceptions.
--   **Validation:** FluentValidation integrated at controller level.
+-   **Validation:** FluentValidation integrated at global level.
 -   **Logging:** Serilog with console sink (lightweight setup).
 
 ------------------------------------------------------------------------
 
-## 🧾 Example Log Output (Serilog)
+## Example Log Output (Serilog)
 
     [11:20:15 INF] HTTP POST /api/books responded 201 in 52.4235ms
     [11:20:25 ERR] Book with Id=3 not found in repository.
 
 ------------------------------------------------------------------------
 
-## 🧠 Bonus Enhancements
+## Bonus Enhancements
 
 -   Caching demonstration via IMemoryCache.
 -   Optional retry strategy (Polly).
@@ -140,7 +153,7 @@ docker run -d -p 5000:80 booklending-api
 
 ------------------------------------------------------------------------
 
-## 🧰 Technologies Used
+## Technologies Used
 
 -   .NET 8 Web API
 -   Entity Framework Core (SQLite / In-Memory)
@@ -149,11 +162,5 @@ docker run -d -p 5000:80 booklending-api
 -   Docker
 -   AWS ECS / Lambda Ready
 -   xUnit, Moq (for testing)
-
-------------------------------------------------------------------------
-
-## 🧾 License
-
-MIT License © 2025 Book Lending Service Demo
 
 ------------------------------------------------------------------------
