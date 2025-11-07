@@ -4,11 +4,6 @@ A professional-grade **.NET 8 Web API** implementing a clean
 architecture, SOLID principles, and production-ready patterns for a
 fictional book lending service.
 
------------------------------------------------------------------------
-
-# AWS Deployment
-
-![alt text](image.png)
 
 ------------------------------------------------------------------------
 
