@@ -6,7 +6,9 @@ using BookLending.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Polly;
 using Serilog;
 
 // --- Setup Serilog ---
@@ -67,6 +69,10 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<BookContext>();
+    var policy = Policy
+    .Handle<SqliteException>()
+    .Or<DbUpdateException>()
+    .WaitAndRetry(3, retry => TimeSpan.FromSeconds(5));
     ctx.Database.EnsureCreated();
 }
 
